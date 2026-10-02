@@ -7,11 +7,15 @@ Run by GitHub Actions every 5 minutes. Fetches the public sources a browser cann
 listings on each fbi.gov field office "About" page. Results are written to the output folder, which
 the workflow publishes to the "data" branch. The globe reads them from raw.githubusercontent.com.
 
-Standard library only.   Usage:  python3 dsic_update.py <output-folder>
+Standard library only.
+    python3 dsic_update.py --ci        GitHub Actions: load data branch, fetch, publish, keep schedule alive
+    python3 dsic_update.py <folder>    fetch into a local folder only
 """
-import datetime as dt, gzip, html, json, os, re, sys, time, urllib.request
+import datetime as dt, gzip, html, io, json, os, re, subprocess, sys, tarfile, time, urllib.request
 
-OUT = sys.argv[1] if len(sys.argv) > 1 else 'out'
+CI = '--ci' in sys.argv
+_args = [a for a in sys.argv[1:] if not a.startswith('--')]
+OUT = _args[0] if _args else 'out'
 os.makedirs(OUT, exist_ok=True)
 
 SOURCES = {
@@ -197,5 +201,55 @@ def main():
     save('README.md', '# DSIC data branch\n\nWritten automatically by the "Update DSIC feeds" workflow. Do not edit.\n')
 
 
+# ------------------------------------------------------------------ GitHub Actions plumbing
+BOT = ['-c', 'user.name=dsic-feed-bot', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com']
+
+
+def git(*args, cwd=None, check=True, capture=False):
+    r = subprocess.run(['git', *args], cwd=cwd, check=False, capture_output=True)
+    if check and r.returncode:
+        raise RuntimeError(f"git {' '.join(a for a in args if 'x-access-token' not in a)} failed: {r.stderr.decode(errors='replace').strip()}")
+    return r
+
+
+def ci_load():
+    """Bring back the previous run's files (leadership, status) from the data branch."""
+    if git('fetch', '--depth=1', 'origin', 'data', check=False).returncode:
+        print('no data branch yet (first run)')
+        return
+    tar = git('archive', 'FETCH_HEAD', capture=True).stdout
+    with tarfile.open(fileobj=io.BytesIO(tar)) as t:
+        t.extractall(OUT, filter='data') if hasattr(tarfile, 'data_filter') else t.extractall(OUT)
+    print('loaded previous data:', ', '.join(sorted(os.listdir(OUT))))
+
+
+def ci_publish():
+    token, repo = os.environ.get('GH_TOKEN'), os.environ.get('GITHUB_REPOSITORY')
+    if not token or not repo:
+        raise RuntimeError('GH_TOKEN / GITHUB_REPOSITORY not set')
+    if os.path.isdir(os.path.join(OUT, '.git')):
+        subprocess.run(['rm', '-rf', os.path.join(OUT, '.git')], check=True)
+    git('init', '-q', '-b', 'data', cwd=OUT)
+    git('add', '-A', cwd=OUT)
+    git(*BOT, 'commit', '-qm', 'feeds ' + now().strftime('%Y-%m-%dT%H:%MZ'), cwd=OUT)
+    url = os.environ.get('DSIC_PUSH_URL') or f'https://x-access-token:{token}@github.com/{repo}.git'
+    git('push', '-qf', url, 'data', cwd=OUT)
+    print('published data branch')
+
+
+def ci_keepalive():
+    """GitHub pauses scheduled workflows after 60 days without repository activity."""
+    last = int(git('log', '-1', '--format=%ct', capture=True).stdout.strip() or 0)
+    if time.time() - last > 45 * 86400:
+        git(*BOT, 'commit', '--allow-empty', '-qm', 'keepalive')
+        git('push', '-q')
+        print('keepalive commit pushed')
+
+
 if __name__ == '__main__':
+    if CI:
+        ci_load()
     main()
+    if CI:
+        ci_publish()
+        ci_keepalive()
