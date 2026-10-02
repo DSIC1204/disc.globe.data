@@ -4,14 +4,11 @@
 "permissions": { "contents": "write" },
 "concurrency": { "group": "dsic-feeds", "cancel-in-progress": false },
 "jobs": { "update": {
-"runs-on": "ubuntu-latest",
+"runs-on": "ubuntu-24.04",
 "timeout-minutes": 15,
 "steps": [
-{ "uses": "actions/checkout@v4" },
-{ "name": "Load previous data", "run": "bash ci.sh load" },
-{ "name": "Fetch public sources", "run": "bash ci.sh fetch" },
-{ "name": "Publish to the data branch", "run": "bash ci.sh publish", "env": { "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}" } },
-{ "name": "Keep the schedule alive", "run": "bash ci.sh keepalive" }
+{ "uses": "actions/checkout@v5" },
+{ "name": "Update feeds", "run": "python3 dsic_update.py --ci", "env": { "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}" } }
 ]
 } }
 }
