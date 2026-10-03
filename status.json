@@ -1,0 +1,50 @@
+{
+ "generated": "2026-10-03T19:17:59Z",
+ "files": {
+  "advisories.xml": {
+   "at": "2026-10-03T19:17:58Z",
+   "ok": true,
+   "bytes": 1083797
+  },
+  "advisories_alt.json": {
+   "at": "",
+   "ok": false,
+   "err": "unexpected response (710178 bytes)",
+   "lastTry": "2026-10-03T19:17:59Z"
+  },
+  "storms.json": {
+   "at": "2026-10-03T19:17:59Z",
+   "ok": true,
+   "bytes": 9557
+  },
+  "wanted.json": {
+   "at": "2026-10-03T19:17:59Z",
+   "ok": true,
+   "bytes": 52983
+  },
+  "news.xml": {
+   "at": "2026-10-03T19:17:59Z",
+   "ok": true,
+   "bytes": 96671
+  },
+  "leadership.json": {
+   "at": "2026-10-03T18:42:43Z",
+   "ok": true,
+   "read": 52,
+   "failed": [
+    "detroit",
+    "lasvegas",
+    "newark",
+    "norfolk"
+   ],
+   "archived": 0,
+   "err": "",
+   "note": ""
+  },
+  "wind.json": {
+   "at": "2026-10-03T16:22:45Z",
+   "ok": true,
+   "valid": "2026-10-03T15:00:00Z"
+  }
+ }
+}
